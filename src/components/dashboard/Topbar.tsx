@@ -4,14 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, CheckCheck, ExternalLink, LogOut, Menu, Search, Settings, ShieldCheck } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, LogOut, Menu, Repeat, Search, Settings, ShieldCheck, Unplug, Wallet } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { DemoPill } from "@/components/ui/Misc";
+import { WalletIcon } from "@/components/wallet/ConnectWalletModal";
 import { cn } from "@/lib/cn";
 import { timeAgo } from "@/lib/format";
-import { useNow } from "@/lib/hooks";
+import { useMounted, useNow } from "@/lib/hooks";
 import { useDemoStore } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { explorerUrl, networkName, shortAddress, useWalletStore } from "@/lib/wallet";
 import { OPEN_PALETTE_EVENT, useIsMac } from "./CommandPalette";
 import { pageTitle } from "./nav";
 
@@ -188,6 +191,101 @@ function UserMenu() {
   );
 }
 
+function WalletMenu() {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const ref = useDismiss(open, close);
+  const connection = useWalletStore((s) => s.connection);
+  const mounted = useMounted();
+
+  // Persisted wallet state is client-only; render the connect button until mounted to avoid hydration drift.
+  if (!mounted || !connection) {
+    return (
+      <button
+        type="button"
+        onClick={() => useWalletStore.getState().openModal()}
+        aria-label="Connect wallet"
+        className="flex h-10 items-center gap-2 rounded-xl border border-accent-1/30 bg-accent-1/[0.06] px-3 text-sm font-medium text-accent-1 transition-colors hover:border-accent-1/60 hover:bg-accent-1/10"
+      >
+        <Wallet className="size-4" />
+        <span className="hidden sm:inline">Connect wallet</span>
+      </button>
+    );
+  }
+
+  const explorer = explorerUrl(connection);
+  const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg/85 transition-colors hover:bg-white/[0.05] hover:text-fg";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={`Wallet ${connection.address}`}
+        className="flex h-10 items-center gap-2 rounded-xl border border-line bg-white/[0.02] pl-1.5 pr-1.5 transition-colors hover:border-white/15 sm:pr-3"
+      >
+        <WalletIcon id={connection.walletId} icon={connection.icon} className="size-7 rounded-lg" />
+        <span className="num hidden text-[13px] font-medium sm:inline">{shortAddress(connection.address)}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            className="glass-solid absolute right-0 top-12 z-50 w-72 rounded-2xl p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+          >
+            <div className="flex items-center gap-3 border-b border-line px-3 pb-3 pt-2">
+              <WalletIcon id={connection.walletId} icon={connection.icon} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{connection.name}</p>
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  <span className="size-1.5 rounded-full bg-accent-1" /> {networkName(connection)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
+              <p className="num min-w-0 flex-1 truncate text-xs text-fg/80" title={connection.address}>
+                {connection.address}
+              </p>
+              <CopyButton value={connection.address} label="Copy address" toastLabel="Address copied" />
+            </div>
+            <div className="py-1.5">
+              {explorer && (
+                <a href={explorer} target="_blank" rel="noopener noreferrer" onClick={close} className={item}>
+                  <ExternalLink className="size-4 text-muted" /> View on explorer
+                </a>
+              )}
+              <button
+                type="button"
+                className={item}
+                onClick={() => {
+                  close();
+                  useWalletStore.getState().openModal();
+                }}
+              >
+                <Repeat className="size-4 text-muted" /> Switch wallet
+              </button>
+              <button
+                type="button"
+                className={cn(item, "text-loss hover:text-loss")}
+                onClick={() => {
+                  close();
+                  void useWalletStore.getState().disconnect();
+                }}
+              >
+                <Unplug className="size-4" /> Disconnect
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function SearchButton() {
   const isMac = useIsMac();
   return (
@@ -221,6 +319,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <DemoPill className="hidden md:inline-flex" />
         <div className="ml-auto flex items-center gap-2">
           <SearchButton />
+          <WalletMenu />
           <Notifications />
           <UserMenu />
         </div>

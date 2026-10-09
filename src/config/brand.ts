@@ -53,6 +53,7 @@ export const brand = {
     palette: "novaedge-palette",
     store: "novaedge-demo-v1",
     booted: "novaedge-booted",
+    wallet: "novaedge-wallet",
   },
   /** Headline numbers used on the marketing site. */
   stats: {

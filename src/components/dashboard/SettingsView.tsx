@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Smartphone,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -24,12 +25,14 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Segmented } from "@/components/ui/Segmented";
 import { Switch } from "@/components/ui/Toggle";
+import { WalletIcon } from "@/components/wallet/ConnectWalletModal";
 import { brand } from "@/config/brand";
 import { COUNTRIES, flag } from "@/data/countries";
 import { cn } from "@/lib/cn";
 import { createRng } from "@/lib/rng";
 import { useDemoStore } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { networkName, useWalletStore } from "@/lib/wallet";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -517,12 +520,60 @@ function KycCard() {
   );
 }
 
+/* ───────────── Wallet ───────────── */
+
+function WalletCard() {
+  const connection = useWalletStore((s) => s.connection);
+  const { openModal, disconnect } = useWalletStore.getState();
+  return (
+    <Card
+      title="Connected wallet"
+      icon={<Wallet />}
+      aside={connection ? <Badge tone="passed">Connected</Badge> : <Badge tone="neutral">Not connected</Badge>}
+    >
+      {connection ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-line bg-white/[0.02] p-3">
+            <WalletIcon id={connection.walletId} icon={connection.icon} className="size-10" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">
+                {connection.name} <span className="font-normal text-muted">· {networkName(connection)}</span>
+              </p>
+              <p className="num truncate text-xs text-muted" title={connection.address}>
+                {connection.address}
+              </p>
+            </div>
+            <CopyButton value={connection.address} label="Copy address" toastLabel="Address copied" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={openModal}>
+              Switch wallet
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void disconnect()}>
+              Disconnect
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Connect MetaMask, Phantom or another browser wallet to pay for challenges in crypto and receive payouts on-chain.
+          </p>
+          <Button size="sm" iconLeft={<Wallet className="size-4" />} onClick={openModal}>
+            Connect wallet
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function SettingsView() {
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-        <p className="text-sm text-muted">Profile, security, notifications and identity verification.</p>
+        <p className="text-sm text-muted">Profile, security, wallet, notifications and identity verification.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="space-y-4">
@@ -531,6 +582,7 @@ export function SettingsView() {
         </div>
         <div className="space-y-4">
           <KycCard />
+          <WalletCard />
           <SecurityCard />
         </div>
       </div>
